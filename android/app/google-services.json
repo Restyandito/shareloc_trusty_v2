@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "543822393541",
+    "firebase_url": "https://trustyv2-8b82f-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "trustyv2-8b82f",
+    "storage_bucket": "trustyv2-8b82f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:543822393541:android:f2c1bdd90cc3f4bb7200ac",
+        "android_client_info": {
+          "package_name": "com.example.shareloc_trusty_v2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlSv0wKQ250GgfEOuBKRW1XsrFQQ7fTPc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
