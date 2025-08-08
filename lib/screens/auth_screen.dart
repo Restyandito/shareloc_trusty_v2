@@ -12,38 +12,46 @@ class _AuthScreenState extends State<AuthScreen> {
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   bool _isLoading = false;
+  bool _isLogin = true; // Toggle mode
 
-  Future<void> _register() async {
+  Future<void> _submitAuth() async {
     setState(() => _isLoading = true);
 
     try {
-      // 1️⃣ Buat akun Auth
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+      if (_isLogin) {
+        // 🔐 Login
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
 
-      final uid = userCredential.user!.uid;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login berhasil')),
+        );
+      } else {
+        // 📝 Register
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
 
-      // 2️⃣ Simpan data ke Firestore (doc ID = UID)
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'uid': uid,
-        'name': _nameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+        final uid = userCredential.user!.uid;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Registrasi sukses! Data tersimpan di Firestore')),
-      );
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'uid': uid,
+          'name': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Registrasi berhasil')),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Auth error: ${e.message}')),
-      );
-    } on FirebaseException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Firestore error: ${e.message}')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -57,20 +65,43 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Register')),
-      body: Padding(
+      appBar: AppBar(
+        title: Text(_isLogin ? 'Login' : 'Register'),
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField(controller: _nameController, decoration: InputDecoration(labelText: 'Name')),
-            TextField(controller: _emailController, decoration: InputDecoration(labelText: 'Email')),
-            TextField(controller: _passwordController, decoration: InputDecoration(labelText: 'Password'), obscureText: true),
+            if (!_isLogin)
+              TextField(
+                controller: _nameController,
+                decoration: InputDecoration(labelText: 'Name'),
+              ),
+            TextField(
+              controller: _emailController,
+              decoration: InputDecoration(labelText: 'Email'),
+            ),
+            TextField(
+              controller: _passwordController,
+              decoration: InputDecoration(labelText: 'Password'),
+              obscureText: true,
+            ),
             SizedBox(height: 20),
             _isLoading
                 ? CircularProgressIndicator()
                 : ElevatedButton(
-              onPressed: _register,
-              child: Text('Register'),
+              onPressed: _submitAuth,
+              child: Text(_isLogin ? 'Login' : 'Register'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _isLogin = !_isLogin;
+                });
+              },
+              child: Text(_isLogin
+                  ? 'Belum punya akun? Register'
+                  : 'Sudah punya akun? Login'),
             ),
           ],
         ),
