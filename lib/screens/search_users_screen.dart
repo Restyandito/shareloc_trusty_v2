@@ -91,8 +91,17 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
         print('Error loading users from Realtime Database: $rtdbError');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error loading users: $rtdbError'),
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Error loading users: $rtdbError')),
+              ],
+            ),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: EdgeInsets.all(16),
           ),
         );
         setState(() {
@@ -184,7 +193,19 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
 
       if (!myUserSnapshot.exists) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Data pengguna tidak ditemukan')),
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Data pengguna tidak ditemukan')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: EdgeInsets.all(16),
+          ),
         );
         return;
       }
@@ -204,11 +225,35 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Permintaan terkirim ke $targetUserName')),
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Permintaan terkirim ke $targetUserName')),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: EdgeInsets.all(16),
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Error: ${e.toString()}')),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: EdgeInsets.all(16),
+        ),
       );
     }
   }
@@ -260,8 +305,17 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Test user "$testUserName" created!'),
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Test user "$testUserName" created!')),
+            ],
+          ),
           backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: EdgeInsets.all(16),
         ),
       );
 
@@ -270,8 +324,17 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
       print('Error creating test user: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error creating test user: $e'),
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Error creating test user: $e')),
+            ],
+          ),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: EdgeInsets.all(16),
         ),
       );
     }
@@ -304,241 +367,637 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
     return keywords.toSet().toList(); // Remove duplicates
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Cari Pengguna'),
-        backgroundColor: Colors.blue,
+  // Generate consistent colors for users based on their name
+  List<Color> _getUserAvatarColors(String name) {
+    final colorPalettes = [
+      [Colors.blue.shade300, Colors.blue.shade600],        // Index 0
+      [Colors.purple.shade300, Colors.purple.shade600],    // Index 1
+      [Colors.green.shade300, Colors.green.shade600],      // Index 2
+      [Colors.orange.shade300, Colors.orange.shade600],    // Index 3
+      [Colors.pink.shade300, Colors.pink.shade600],        // Index 4
+      [Colors.teal.shade300, Colors.teal.shade600],        // Index 5
+      [Colors.indigo.shade300, Colors.indigo.shade600],    // Index 6
+      [Colors.red.shade300, Colors.red.shade600],          // Index 7
+      [Colors.amber.shade300, Colors.amber.shade600],      // Index 8
+      [Colors.cyan.shade300, Colors.cyan.shade600],        // Index 9
+      [Colors.deepOrange.shade300, Colors.deepOrange.shade600], // Index 10
+      [Colors.lime.shade300, Colors.lime.shade600],        // Index 11
+      [Colors.brown.shade300, Colors.brown.shade600],      // Index 12
+      [Colors.blueGrey.shade300, Colors.blueGrey.shade600], // Index 13
+      [Colors.deepPurple.shade300, Colors.deepPurple.shade600], // Index 14
+    ];
+
+    // Create a more diverse hash based on name characters
+    int hash = 0;
+    for (int i = 0; i < name.length; i++) {
+      hash = hash + name.codeUnitAt(i);
+    }
+
+    // Add additional variation based on name length and first character
+    hash = hash + (name.length * 17) + (name.isNotEmpty ? name.codeUnitAt(0) * 31 : 0);
+
+    final colorIndex = hash.abs() % colorPalettes.length;
+
+    print('🎨 Color for "$name": Index $colorIndex (Hash: $hash)');
+
+    return colorPalettes[colorIndex];
+  }
+
+  Color _getUserAvatarShadowColor(String name) {
+    final colors = _getUserAvatarColors(name);
+    return colors[1].withOpacity(0.3);
+  }
+
+  Widget _buildGradientAppBar() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade600, Colors.blue.shade800],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: AppBar(
+        title: Text(
+          'Cari Pengguna',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _loadAllUsers,
-            tooltip: 'Refresh daftar pengguna',
+          Container(
+            margin: EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: Icon(Icons.refresh_rounded),
+              onPressed: _loadAllUsers,
+              tooltip: 'Refresh daftar pengguna',
+            ),
           ),
         ],
       ),
-      body: Column(
+    );
+  }
+
+  Widget _buildSearchSection() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
         children: [
-          Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    labelText: 'Cari berdasarkan nama atau email',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: Icon(Icons.search),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                      icon: Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        _searchUsers('');
-                      },
-                    )
-                        : null,
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Cari berdasarkan nama atau email',
+                labelStyle: TextStyle(color: Colors.grey.shade600),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                prefixIcon: Container(
+                  margin: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  onChanged: _searchUsers,
-                  onSubmitted: _searchUsers,
+                  child: Icon(Icons.search_rounded, color: Colors.blue.shade600),
                 ),
-                SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? Container(
+                  margin: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: IconButton(
+                    icon: Icon(Icons.clear_rounded, color: Colors.grey.shade600),
+                    onPressed: () {
+                      _searchController.clear();
+                      _searchUsers('');
+                    },
+                  ),
+                )
+                    : null,
+              ),
+              onChanged: _searchUsers,
+              onSubmitted: _searchUsers,
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+          SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _showingAllUsers ? Colors.blue.shade50 : Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _showingAllUsers ? Colors.blue.shade200 : Colors.orange.shade200,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    Icon(
+                      _showingAllUsers ? Icons.people_rounded : Icons.search_rounded,
+                      size: 16,
+                      color: _showingAllUsers ? Colors.blue.shade600 : Colors.orange.shade600,
+                    ),
+                    SizedBox(width: 6),
                     Text(
                       _showingAllUsers
                           ? 'Semua Pengguna (${_allUsers.length})'
                           : 'Hasil Pencarian (${_searchResults.length})',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _showingAllUsers ? Colors.blue.shade600 : Colors.orange.shade600,
                       ),
-                    ),
-                    if (_allUsers.isEmpty && !_isLoading)
-                      TextButton.icon(
-                        onPressed: _loadAllUsers,
-                        icon: Icon(Icons.refresh, size: 16),
-                        label: Text('Muat Ulang'),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          if (_isLoading)
-            Expanded(
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_searchResults.isEmpty && _allUsers.isEmpty)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
-                    SizedBox(height: 16),
-                    Text(
-                      'Tidak ada pengguna lain',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Pastikan ada pengguna lain yang sudah registrasi\natau coba refresh untuk memuat ulang data',
-                      style: Theme.of(context).textTheme.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: _loadAllUsers,
-                      icon: Icon(Icons.refresh),
-                      label: Text('Coba Lagi'),
                     ),
                   ],
                 ),
               ),
-            )
-          else if (_searchResults.isEmpty && !_showingAllUsers)
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-                      SizedBox(height: 16),
-                      Text(
-                        'Tidak ada hasil untuk "${_searchController.text}"',
-                        style: Theme.of(context).textTheme.titleMedium,
-                        textAlign: TextAlign.center,
+              if (_allUsers.isEmpty && !_isLoading)
+                Container(
+                  height: 32,
+                  child: TextButton.icon(
+                    onPressed: _loadAllUsers,
+                    icon: Icon(Icons.refresh_rounded, size: 16),
+                    label: Text('Muat Ulang', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.grey.shade100,
+                      foregroundColor: Colors.grey.shade700,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Coba kata kunci yang berbeda atau lihat semua pengguna',
-                        style: Theme.of(context).textTheme.bodySmall,
-                        textAlign: TextAlign.center,
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Expanded(
+      child: Center(
+        child: Container(
+          padding: EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withOpacity(0.1),
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade600),
+                strokeWidth: 3,
+              ),
+              SizedBox(height: 20),
+              Text(
+                'Mencari pengguna...',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyAllUsersState() {
+    return Expanded(
+      child: Center(
+        child: Container(
+          margin: EdgeInsets.all(32),
+          padding: EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.people_outline_rounded,
+                  size: 48,
+                  color: Colors.blue.shade400,
+                ),
+              ),
+              SizedBox(height: 24),
+              Text(
+                'Tidak ada pengguna lain',
+                style: TextStyle(
+                  fontSize: 20,
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Pastikan ada pengguna lain yang sudah registrasi\natau coba refresh untuk memuat ulang data',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade500,
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: _loadAllUsers,
+                icon: Icon(Icons.refresh_rounded),
+                label: Text('Coba Lagi'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptySearchState() {
+    return Expanded(
+      child: Center(
+        child: Container(
+          margin: EdgeInsets.all(32),
+          padding: EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.search_off_rounded,
+                  size: 48,
+                  color: Colors.orange.shade400,
+                ),
+              ),
+              SizedBox(height: 24),
+              Text(
+                'Tidak ada hasil untuk "${_searchController.text}"',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Coba kata kunci yang berbeda atau lihat semua pengguna',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade500,
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () {
+                  _searchController.clear();
+                  _searchUsers('');
+                },
+                icon: Icon(Icons.people_rounded),
+                label: Text('Lihat Semua Pengguna'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUsersList() {
+    return Expanded(
+      child: RefreshIndicator(
+        onRefresh: () async {
+          await _loadAllUsers();
+        },
+        color: Colors.blue.shade600,
+        child: ListView.builder(
+          padding: EdgeInsets.fromLTRB(16, 20, 16, 100),
+          itemCount: _searchResults.length,
+          itemBuilder: (context, index) {
+            final user = _searchResults[index];
+            final isOnline = user['isOnline'] == true;
+            final userName = user['name'] ?? 'User';
+            final avatarColors = _getUserAvatarColors(userName);
+            final shadowColor = _getUserAvatarShadowColor(userName);
+
+            return Container(
+              margin: EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    blurRadius: 15,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: ListTile(
+                contentPadding: EdgeInsets.all(20),
+                leading: Stack(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: avatarColors,
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: shadowColor,
+                            blurRadius: 10,
+                            offset: Offset(0, 5),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 16),
-                      TextButton.icon(
-                        onPressed: () {
-                          _searchController.clear();
-                          _searchUsers('');
-                        },
-                        icon: Icon(Icons.people),
-                        label: Text('Lihat Semua Pengguna'),
+                      child: CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.transparent,
+                        child: Text(
+                          (userName.isNotEmpty)
+                              ? userName[0].toString().toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 2,
+                      bottom: 2,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: isOnline ? Colors.green : Colors.grey,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (isOnline ? Colors.green : Colors.grey).withOpacity(0.3),
+                              blurRadius: 5,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                title: Text(
+                  userName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.grey.shade800,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(height: 6),
+                    Text(
+                      user['email'] ?? 'Email tidak tersedia',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 10),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isOnline ? Colors.green.shade50 : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isOnline ? Colors.green.shade200 : Colors.grey.shade300,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: isOnline ? Colors.green : Colors.grey,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            isOnline ? 'Online' : 'Offline',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isOnline ? Colors.green.shade700 : Colors.grey.shade600,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                trailing: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue.shade400, Colors.blue.shade600],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
                       ),
                     ],
                   ),
-                ),
-              )
-            else
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: () async {
-                    await _loadAllUsers();
-                  },
-                  child: ListView.builder(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _searchResults.length,
-                    itemBuilder: (context, index) {
-                      final user = _searchResults[index];
-                      return Card(
-                        margin: EdgeInsets.only(bottom: 8),
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.all(16),
-                          leading: CircleAvatar(
-                            radius: 28,
-                            child: Text(
-                              user['name'][0].toString().toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            backgroundColor: Colors.blue[100],
-                            foregroundColor: Colors.blue[800],
-                          ),
-                          title: Text(
-                            user['name'] ?? 'Nama tidak tersedia',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(height: 4),
-                              Text(
-                                user['email'] ?? 'Email tidak tersedia',
-                                style: TextStyle(color: Colors.grey[600]),
-                              ),
-                              SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: user['isOnline'] == true
-                                          ? Colors.green
-                                          : Colors.grey,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    user['isOnline'] == true ? 'Online' : 'Offline',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: user['isOnline'] == true
-                                          ? Colors.green
-                                          : Colors.grey[600],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          trailing: ElevatedButton.icon(
-                            onPressed: () => _sendConnectionRequest(
-                              user['userId'],
-                              user['name'] ?? 'User',
-                            ),
-                            icon: Icon(Icons.person_add, size: 16),
-                            label: Text('Hubungkan'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                          isThreeLine: true,
-                        ),
-                      );
-                    },
+                  child: ElevatedButton.icon(
+                    onPressed: () => _sendConnectionRequest(
+                      user['userId'],
+                      user['name'] ?? 'User',
+                    ),
+                    icon: Icon(Icons.person_add_rounded, size: 16),
+                    label: Text(
+                      'Hubungkan',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
                   ),
                 ),
+                isThreeLine: true,
               ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(kToolbarHeight),
+        child: _buildGradientAppBar(),
+      ),
+      body: Column(
+        children: [
+          _buildSearchSection(),
+
+          if (_isLoading)
+            _buildLoadingState()
+          else if (_searchResults.isEmpty && _allUsers.isEmpty)
+            _buildEmptyAllUsersState()
+          else if (_searchResults.isEmpty && !_showingAllUsers)
+              _buildEmptySearchState()
+            else
+              _buildUsersList(),
         ],
       ),
-
-      // Debug button
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _createTestUser,
-        icon: Icon(Icons.add),
-        label: Text('Test User'),
-        backgroundColor: Colors.green,
-        tooltip: 'Buat test user untuk debugging',
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.green.shade400, Colors.green.shade600],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.green.withOpacity(0.3),
+              blurRadius: 15,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: _createTestUser,
+          icon: Icon(Icons.add_rounded, color: Colors.white),
+          label: Text(
+            'Test User',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          tooltip: 'Buat test user untuk debugging',
+        ),
       ),
     );
   }

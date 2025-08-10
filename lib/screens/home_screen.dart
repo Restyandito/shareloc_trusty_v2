@@ -7,13 +7,14 @@ import 'dart:async';
 import 'map_screen.dart';
 import 'search_users_screen.dart';
 import 'connections_screen.dart';
+import 'profile_screen.dart'; // Import profile screen
 
 class HomeScreen extends StatefulWidget {
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final _auth = FirebaseAuth.instance;
   final _database = FirebaseDatabase.instance.ref();
   final _firestore = FirebaseFirestore.instance;
@@ -22,15 +23,37 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _locationTimer;
   bool _isLocationEnabled = false;
   String _userName = '';
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
+    _initializeAnimations();
     _initializeApp();
+  }
+
+  void _initializeAnimations() {
+    _pulseController = AnimationController(
+      duration: Duration(seconds: 2),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.1,
+    ).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ));
+
+    if (_isLocationEnabled) {
+      _pulseController.repeat(reverse: true);
+    }
   }
 
   @override
   void dispose() {
+    _pulseController.dispose();
     _locationTimer?.cancel();
     _setUserOffline();
     super.dispose();
@@ -50,9 +73,11 @@ class _HomeScreenState extends State<HomeScreen> {
         final userDoc = await _firestore.collection('users').doc(user.uid).get();
         if (userDoc.exists) {
           final userData = userDoc.data()!;
-          setState(() {
-            _userName = userData['name'] ?? user.displayName ?? 'User';
-          });
+          if (mounted) {
+            setState(() {
+              _userName = userData['name'] ?? user.displayName ?? 'User';
+            });
+          }
           return;
         }
 
@@ -60,19 +85,25 @@ class _HomeScreenState extends State<HomeScreen> {
         final snapshot = await _database.child('users').child(user.uid).once();
         if (snapshot.snapshot.exists) {
           final userData = snapshot.snapshot.value as Map<dynamic, dynamic>;
-          setState(() {
-            _userName = userData['name'] ?? user.displayName ?? 'User';
-          });
+          if (mounted) {
+            setState(() {
+              _userName = userData['name'] ?? user.displayName ?? 'User';
+            });
+          }
         } else {
+          if (mounted) {
+            setState(() {
+              _userName = user.displayName ?? user.email?.split('@')[0] ?? 'User';
+            });
+          }
+        }
+      } catch (e) {
+        print('Error getting user data: $e');
+        if (mounted) {
           setState(() {
             _userName = user.displayName ?? user.email?.split('@')[0] ?? 'User';
           });
         }
-      } catch (e) {
-        print('Error getting user data: $e');
-        setState(() {
-          _userName = user.displayName ?? user.email?.split('@')[0] ?? 'User';
-        });
       }
     }
   }
@@ -84,9 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!serviceEnabled) {
         serviceEnabled = await _location.requestService();
         if (!serviceEnabled) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('GPS harus diaktifkan untuk berbagi lokasi')),
-          );
+          _showSnackBar('GPS harus diaktifkan untuk berbagi lokasi', Colors.orange);
           return;
         }
       }
@@ -96,9 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (permissionGranted == PermissionStatus.denied) {
         permissionGranted = await _location.requestPermission();
         if (permissionGranted != PermissionStatus.granted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Izin lokasi diperlukan untuk berbagi lokasi')),
-          );
+          _showSnackBar('Izin lokasi diperlukan untuk berbagi lokasi', Colors.orange);
           return;
         }
       }
@@ -107,24 +134,27 @@ class _HomeScreenState extends State<HomeScreen> {
       LocationData locationData = await _location.getLocation();
       print('Current location: ${locationData.latitude}, ${locationData.longitude}');
 
-      setState(() {
-        _isLocationEnabled = true;
-      });
+      if (mounted) {
+        setState(() {
+          _isLocationEnabled = true;
+        });
+      }
+
+      // Start pulse animation when location is enabled
+      _pulseController.repeat(reverse: true);
 
       // Update location immediately
       await _updateLocation(locationData.latitude!, locationData.longitude!);
 
       _startLocationTracking();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Berbagi lokasi diaktifkan!')),
-      );
+      _showSnackBar('Berbagi lokasi diaktifkan!', Colors.green);
 
     } catch (e) {
       print('Error requesting location permission: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error mengakses lokasi: $e')),
-      );
+      if (mounted) {
+        _showSnackBar('Error mengakses lokasi: $e', Colors.red);
+      }
     }
   }
 
@@ -144,9 +174,9 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       } catch (e) {
         print('Error getting location: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error mendapatkan lokasi: $e')),
-        );
+        if (mounted) {
+          _showSnackBar('Error mendapatkan lokasi: $e', Colors.red);
+        }
       }
     });
 
@@ -213,9 +243,9 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       print('Error updating location: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error menyimpan lokasi: $e')),
-      );
+      if (mounted) {
+        _showSnackBar('Error menyimpan lokasi: $e', Colors.red);
+      }
     }
   }
 
@@ -265,177 +295,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _testLocationNow() async {
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Testing lokasi...')),
-      );
-
-      LocationData locationData = await _location.getLocation();
-      print('Test location result: ${locationData.latitude}, ${locationData.longitude}');
-
-      if (locationData.latitude != null && locationData.longitude != null) {
-        await _updateLocation(locationData.latitude!, locationData.longitude!);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                '✅ Lokasi berhasil: ${locationData.latitude?.toStringAsFixed(6)}, ${locationData.longitude?.toStringAsFixed(6)}'
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Gagal mendapatkan lokasi'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      print('Test location error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  void _showFirebaseData() async {
-    try {
-      final currentUser = _auth.currentUser;
-      if (currentUser == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ User tidak login')),
-        );
-        return;
-      }
-
-      List<String> dataInfo = [];
-
-      // Current user info
-      dataInfo.add('=== USER SAYA ===');
-      dataInfo.add('UID: ${currentUser.uid}');
-      dataInfo.add('Email: ${currentUser.email}');
-      dataInfo.add('Display Name: ${currentUser.displayName ?? "None"}');
-
-      // Firestore users data
-      dataInfo.add('\n=== FIRESTORE USERS ===');
-      try {
-        final firestoreUsersSnapshot = await _firestore.collection('users').get();
-        dataInfo.add('Total Firestore users: ${firestoreUsersSnapshot.docs.length}');
-
-        for (var doc in firestoreUsersSnapshot.docs) {
-          final user = doc.data();
-          dataInfo.add('- ${user['name']} (${user['email']}) - ${user['isOnline'] == true ? 'Online' : 'Offline'}');
-        }
-      } catch (e) {
-        dataInfo.add('Error loading Firestore users: $e');
-      }
-
-      // Realtime Database users data
-      dataInfo.add('\n=== REALTIME DB USERS ===');
-      try {
-        final rtdbUsersSnapshot = await _database.child('users').once();
-        if (rtdbUsersSnapshot.snapshot.exists) {
-          final usersData = Map<String, dynamic>.from(rtdbUsersSnapshot.snapshot.value as Map);
-          dataInfo.add('Total RTDB users: ${usersData.length}');
-
-          usersData.forEach((userId, userData) {
-            final user = Map<String, dynamic>.from(userData as Map);
-            dataInfo.add('- ${user['name']} (${user['email']}) - ${user['isOnline'] == true ? 'Online' : 'Offline'}');
-          });
-        } else {
-          dataInfo.add('No users in Realtime Database');
-        }
-      } catch (e) {
-        dataInfo.add('Error loading RTDB users: $e');
-      }
-
-      // Locations data (Realtime Database)
-      dataInfo.add('\n=== LOKASI AKTIF (RTDB) ===');
-      try {
-        final locationsSnapshot = await _database.child('locations').once();
-        if (locationsSnapshot.snapshot.exists) {
-          final locationsData = Map<String, dynamic>.from(locationsSnapshot.snapshot.value as Map);
-          dataInfo.add('Total locations: ${locationsData.length}');
-
-          for (String userId in locationsData.keys) {
-            final location = Map<String, dynamic>.from(locationsData[userId] as Map);
-
-            // Get user name
-            String userName = 'Unknown';
-            try {
-              final userDoc = await _firestore.collection('users').doc(userId).get();
-              if (userDoc.exists) {
-                userName = userDoc.data()!['name'] ?? 'Unknown';
-              }
-            } catch (e) {
-              // Try Realtime Database
-              final userSnapshot = await _database.child('users').child(userId).once();
-              if (userSnapshot.snapshot.exists) {
-                final userData = userSnapshot.snapshot.value as Map;
-                userName = userData['name'] ?? 'Unknown';
-              }
-            }
-
-            dataInfo.add('- $userName: ${location['latitude']?.toStringAsFixed(6)}, ${location['longitude']?.toStringAsFixed(6)}');
-          }
-        } else {
-          dataInfo.add('Tidak ada lokasi aktif');
-        }
-      } catch (e) {
-        dataInfo.add('Error loading locations: $e');
-      }
-
-      // Show dialog
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text('Data Firebase'),
-            content: SingleChildScrollView(
-              child: Container(
-                width: double.maxFinite,
-                child: Text(
-                  dataInfo.join('\n'),
-                  style: TextStyle(fontFamily: 'monospace', fontSize: 11),
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text('Tutup'),
-              ),
-            ],
-          );
-        },
-      );
-
-    } catch (e) {
-      print('Error showing firebase data: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   void _toggleLocationSharing() async {
     if (!_isLocationEnabled) {
       // Turning ON location sharing
       await _requestLocationPermission();
     } else {
       // Turning OFF location sharing
-      setState(() {
-        _isLocationEnabled = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLocationEnabled = false;
+        });
+      }
+      _pulseController.stop();
       _locationTimer?.cancel();
 
       // Remove location data from both databases when turned off
@@ -454,15 +325,14 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Berbagi lokasi dimatikan')),
-      );
+      _showSnackBar('Berbagi lokasi dimatikan', Colors.orange);
     }
   }
 
   void _logout() async {
     await _setUserOffline();
     _locationTimer?.cancel();
+    _pulseController.stop();
 
     // Remove location data when logging out
     final user = _auth.currentUser;
@@ -478,99 +348,236 @@ class _HomeScreenState extends State<HomeScreen> {
     await _auth.signOut();
   }
 
+  void _showSnackBar(String message, Color backgroundColor) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              backgroundColor == Colors.green ? Icons.check_circle : Icons.error,
+              color: Colors.white,
+            ),
+            SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: backgroundColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: EdgeInsets.all(16),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('ShareLoc - Hello $_userName'),
-        backgroundColor: Colors.blue,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.logout),
-            onPressed: _logout,
-            tooltip: 'Logout',
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.blue, Colors.blue.shade50],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Location Status Card
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+      backgroundColor: Colors.grey.shade50,
+      body: CustomScrollView(
+        slivers: [
+          // Modern SliverAppBar with gradient - Fixed height
+          SliverAppBar(
+            expandedHeight: 140, // Reduced from 200 to 140
+            floating: false,
+            pinned: true,
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.blue.shade600,
+                      Colors.blue.shade700,
+                      Colors.blue.shade800,
+                    ],
                   ),
+                ),
+                child: SafeArea(
                   child: Padding(
-                    padding: EdgeInsets.all(20.0),
+                    padding: EdgeInsets.fromLTRB(24, 16, 24, 20), // Adjusted padding
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end, // Align to bottom
                       children: [
-                        Icon(
-                          _isLocationEnabled ? Icons.location_on : Icons.location_off,
-                          size: 48,
-                          color: _isLocationEnabled ? Colors.green : Colors.red,
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          _isLocationEnabled ? 'Berbagi Lokasi Aktif' : 'Berbagi Lokasi Nonaktif',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          _isLocationEnabled
-                              ? 'Lokasi Anda dibagikan setiap 10 detik'
-                              : 'Aktifkan untuk berbagi lokasi dengan teman',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _toggleLocationSharing,
-                          icon: Icon(_isLocationEnabled ? Icons.location_off : Icons.location_on),
-                          label: Text(_isLocationEnabled ? 'Matikan Berbagi' : 'Aktifkan Berbagi'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isLocationEnabled ? Colors.red : Colors.green,
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Hi, $_userName! 👋',
+                                    style: TextStyle(
+                                      fontSize: 26, // Slightly smaller
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Selamat datang di Trusty',
+                                    style: TextStyle(
+                                      fontSize: 15, // Slightly smaller
+                                      color: Colors.white.withOpacity(0.9),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: IconButton(
+                                icon: Icon(Icons.logout_rounded, color: Colors.white),
+                                onPressed: _logout,
+                                tooltip: 'Logout',
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
                 ),
+              ),
+            ),
+          ),
 
-                SizedBox(height: 20),
+          // Main Content
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(20), // Reduced from 24 to 20
+              child: Column(
+                children: [
+                  // Location Status Card - Modern Design
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: _isLocationEnabled
+                            ? [Colors.green.shade400, Colors.green.shade600]
+                            : [Colors.grey.shade400, Colors.grey.shade600],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (_isLocationEnabled ? Colors.green : Colors.grey).withOpacity(0.3),
+                          spreadRadius: 0,
+                          blurRadius: 20,
+                          offset: Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          AnimatedBuilder(
+                            animation: _pulseAnimation,
+                            builder: (context, child) {
+                              return Transform.scale(
+                                scale: _isLocationEnabled ? _pulseAnimation.value : 1.0,
+                                child: Container(
+                                  padding: EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    _isLocationEnabled ? Icons.location_on : Icons.location_off,
+                                    size: 48,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            _isLocationEnabled ? 'Berbagi Lokasi Aktif' : 'Berbagi Lokasi Dinonaktifkan',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            _isLocationEnabled
+                                ? 'Lokasi Anda dibagikan setiap 10 detik'
+                                : 'Aktifkan untuk berbagi lokasi dengan teman',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 20),
+                          Container(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _toggleLocationSharing,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: _isLocationEnabled ? Colors.green.shade600 : Colors.grey.shade600,
+                                elevation: 0,
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    _isLocationEnabled ? Icons.pause : Icons.play_arrow,
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    _isLocationEnabled ? 'Jeda Berbagi' : 'Mulai Berbagi',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
-                // Main Actions
-                Expanded(
-                  child: Column(
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.1,
                     children: [
-                      _buildActionCard(
+                      _buildMenuCard(
                         context,
-                        icon: Icons.map,
+                        icon: Icons.map_rounded,
                         title: 'Lihat Peta',
-                        subtitle: 'Lihat lokasi teman di peta',
-                        color: Colors.blue,
+                        subtitle: 'Lihat lokasi teman',
+                        gradient: [Colors.blue.shade400, Colors.blue.shade600],
                         onTap: () {
                           Navigator.push(
                             context,
@@ -578,15 +585,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         },
                       ),
-
-                      SizedBox(height: 12),
-
-                      _buildActionCard(
+                      _buildMenuCard(
                         context,
-                        icon: Icons.search,
+                        icon: Icons.search_rounded,
                         title: 'Cari Pengguna',
-                        subtitle: 'Temukan dan hubungkan dengan pengguna lain',
-                        color: Colors.orange,
+                        subtitle: 'Terhubung Sekarang',
+                        gradient: [Colors.orange.shade400, Colors.orange.shade600],
                         onTap: () {
                           Navigator.push(
                             context,
@@ -594,15 +598,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         },
                       ),
-
-                      SizedBox(height: 12),
-
-                      _buildActionCard(
+                      _buildMenuCard(
                         context,
-                        icon: Icons.people,
+                        icon: Icons.people_rounded,
                         title: 'Koneksi Saya',
-                        subtitle: 'Kelola permintaan dan koneksi',
-                        color: Colors.purple,
+                        subtitle: 'Kelola koneksi',
+                        gradient: [Colors.purple.shade400, Colors.purple.shade600],
                         onTap: () {
                           Navigator.push(
                             context,
@@ -610,141 +611,102 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         },
                       ),
-
-                      Spacer(),
-
-                      // Debug section
-                      Card(
-                        color: Colors.grey[100],
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.bug_report, size: 16, color: Colors.grey[600]),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Debug Tools:',
-                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: _testLocationNow,
-                                      icon: Icon(Icons.gps_fixed, size: 16),
-                                      label: Text('Test Lokasi'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.orange,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(width: 8),
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: _showFirebaseData,
-                                      icon: Icon(Icons.storage, size: 16),
-                                      label: Text('Lihat Data'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.teal,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
+                      _buildMenuCard(
+                        context,
+                        icon: Icons.person_rounded,
+                        title: 'Profil',
+                        subtitle: 'Kelola profil Anda',
+                        gradient: [Colors.teal.shade400, Colors.teal.shade600],
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => ProfileScreen()),
+                          );
+                        },
                       ),
                     ],
                   ),
-                ),
-              ],
+
+                  SizedBox(height: 20), // Reduced from 24 to 20
+                ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildActionCard(
+  Widget _buildMenuCard(
       BuildContext context, {
         required IconData icon,
         required String title,
         required String subtitle,
-        required Color color,
+        required List<Color> gradient,
         required VoidCallback onTap,
       }) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: gradient,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: gradient.first.withOpacity(0.3),
+            spreadRadius: 0,
+            blurRadius: 15,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: EdgeInsets.all(20.0),
-          child: Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 32,
+                    color: Colors.white,
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  size: 28,
-                  color: color,
+                SizedBox(height: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
+                SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.grey[400],
-                size: 16,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
