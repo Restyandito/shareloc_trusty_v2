@@ -3,10 +3,31 @@ class Assets {
   Assets._();
 
   static const String assetsImagesBg = 'assets/images/bg.png';
+  static const String generatedAssets = 'lib/generated/assets.dart';
   static const String iconTrackerIcon = 'assets/icon/tracker_icon.png';
   static const String imagesBg = 'assets/images/bg.png';
+  static const String libMain = 'lib/main.dart';
+  static const String modelsDistanceNotification = 'lib/models/distance_notification.dart';
+  static const String screensAuthScreen = 'lib/screens/auth_screen.dart';
+  static const String screensConnectionsScreen = 'lib/screens/connections_screen.dart';
+  static const String screensHomeScreen = 'lib/screens/home_screen.dart';
+  static const String screensMapScreen = 'lib/screens/map_screen.dart';
+  static const String screensProfileScreen = 'lib/screens/profile_screen.dart';
+  static const String screensSearchUsersScreen = 'lib/screens/search_users_screen.dart';
+  static const String servicesDebugService = 'lib/services/debug_service.dart';
+  static const String servicesDistanceNotificationService = 'lib/services/distance_notification_service.dart';
+  static const String servicesLocationService = 'lib/services/location_service.dart';
+  static const String servicesMapServices = 'lib/services/map_services.dart';
+  static const String servicesUserTrackingService = 'lib/services/user_tracking_service.dart';
   static const String soundsCriticalDistance = 'assets/sounds/critical_distance.mp3';
   static const String soundsDangerDistance = 'assets/sounds/danger_distance.mp3';
   static const String soundsWarningDistance = 'assets/sounds/warning_distance.mp3';
+  static const String utilsAstarPathfinder = 'lib/utils/astar_pathfinder.dart';
+  static const String utilsMapConstants = 'lib/utils/map_constants.dart';
+  static const String widgetsMapControlWidgets = 'lib/widgets/map_control_widgets.dart';
+  static const String widgetsMapDebugPanel = 'lib/widgets/map_debug_panel.dart';
+  static const String widgetsMapFloatingWidgets = 'lib/widgets/map_floating_widgets.dart';
+  static const String widgetsMapTrackingList = 'lib/widgets/map_tracking_list.dart';
+  static const String widgetsMapWidgets = 'lib/widgets/map_widgets.dart';
 
 }

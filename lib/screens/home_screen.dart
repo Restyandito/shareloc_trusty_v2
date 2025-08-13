@@ -4,10 +4,12 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:location/location.dart';
 import 'dart:async';
-import 'map_screen.dart';
+
+// Import screens dengan path yang benar
+import 'map_screen.dart';         // Sekarang sudah ada di screens folder
 import 'search_users_screen.dart';
 import 'connections_screen.dart';
-import 'profile_screen.dart'; // Import profile screen
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -563,6 +565,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                     ),
                   ),
+
+                  SizedBox(height: 20),
 
                   GridView.count(
                     shrinkWrap: true,
